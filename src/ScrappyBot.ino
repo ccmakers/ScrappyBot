@@ -10,12 +10,13 @@
 
 //Set these to your desired credentials. These are CASE SENSITIVE.
 #define WIFI_CLIENT_ENABLED 1
-const char *ap_ssid = "ScrappyNet01";
+const char *ap_ssid = "ScrappyRod";
 const char *ap_password = "scrappybot";
 const char *client_ssid = "Z3r0";
 const char *client_password = "teleport";
 
-WiFiServer server(3503);//Listening port is 3503
+IPAddress ip(10, 0, 1, 50);
+WiFiServer server(80); // Listening port is 80
 
 
 
@@ -67,15 +68,18 @@ int led_state = LOW;
 WiFiClient serverClient;
 
 void loop() {
+
   if ((loop_count % 16384) == 0) {
     if (led_state == LOW) {
       led_state = HIGH;
     } else led_state = LOW;
     digitalWrite(LED_BUILTIN, led_state);
   }
+
   if (server.hasClient()) {
     serverClient = server.available();
   }
+
   if (serverClient && serverClient.connected()) {
     if (serverClient.available()) {
       char data_buffer[129];//buffer to store data from/to the remote
