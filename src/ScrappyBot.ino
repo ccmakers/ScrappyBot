@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <Wire.h>
 #include <ESP8266WiFi.h>
 #include <Adafruit_PWMServoDriver.h>
@@ -11,8 +12,8 @@
 #define WIFI_CLIENT_ENABLED 1
 const char *ap_ssid = "ScrappyNet01";
 const char *ap_password = "scrappybot";
-const char *client_ssid = "Arcadia";
-const char *client_password = "37f3a50ec6";
+const char *client_ssid = "Z3r0";
+const char *client_password = "teleport";
 
 WiFiServer server(3503);//Listening port is 3503
 
@@ -25,7 +26,7 @@ void brakeMotor(int motor);
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
 
-
+/*** Setup ***/
 void setup() {
   pinMode(D4, OUTPUT);
   pinMode(D5, OUTPUT);
