@@ -5,19 +5,26 @@
 #define MOTOR_A 0
 #define MOTOR_B 1
 
-/* Set these to your desired credentials. These are CASE SENSITIVE.*/
+/*** Wifi ***/
+
+//Set these to your desired credentials. These are CASE SENSITIVE.
 #define WIFI_CLIENT_ENABLED 1
 const char *ap_ssid = "ScrappyNet01";
 const char *ap_password = "scrappybot";
 const char *client_ssid = "Arcadia";
 const char *client_password = "37f3a50ec6";
 
+WiFiServer server(3503);//Listening port is 3503
+
+
+
+/*** Servo ***/
 void setMotor(int motor, int speed);
 void brakeMotor(int motor);
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
-WiFiServer server(3503);//Listening port is 3503
+
 
 void setup() {
   pinMode(D4, OUTPUT);
@@ -43,10 +50,10 @@ void setup() {
   WiFi.hostname("ScrappyBot");
   WiFi.softAP(ap_ssid, ap_password);
   if(WIFI_CLIENT_ENABLED){
-    WiFi.begin(client_ssid, client_password); 
+    WiFi.begin(client_ssid, client_password);
     delay(2000);//Give time for wifi to connect (if possible)
   }
-  
+
   server.begin();
   server.setNoDelay(true);
 
