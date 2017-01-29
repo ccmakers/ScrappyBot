@@ -1,25 +1,47 @@
+#include <Arduino.h>
 #include <Wire.h>
 #include <ESP8266WiFi.h>
+#include <WiFiUdp.h>
 #include <Adafruit_PWMServoDriver.h>
+#include <OSCMessage.h>
+#include <OSCBundle.h>
+#include <OSCData.h>
 
 #define MOTOR_A 0
 #define MOTOR_B 1
 
-/* Set these to your desired credentials. These are CASE SENSITIVE.*/
+/*** Wifi ***/
+
+//Set these to your desired credentials. These are CASE SENSITIVE.
 #define WIFI_CLIENT_ENABLED 1
 const char *ap_ssid = "ScrappyNet01";
 const char *ap_password = "scrappybot";
-const char *client_ssid = "Arcadia";
-const char *client_password = "37f3a50ec6";
 
-void setMotor(int motor, int speed);
+// A UDP instance to let us send and receive packets over UDP
+WiFiUDP Udp;
+
+const unsigned int localPort = 8888;
+
+OSCErrorCode error;
+
+WiFiServer server(80); // Listening port is 80
+
+
+
+/*** Servo ***/
+void setMotor(int motor, int speed = 128);
 void brakeMotor(int motor);
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
-WiFiServer server(3503);//Listening port is 3503
 
+/*** Setup ***/
 void setup() {
+
+  // Initializing serial port for debugging purposes
+  Serial.begin(9600);
+  delay(5);
+
   pinMode(D4, OUTPUT);
   pinMode(D5, OUTPUT);
   pinMode(D6, OUTPUT);
@@ -39,16 +61,28 @@ void setup() {
   pwm.setPWM(3, 0, 4096);//special value for pin fully low
 
   //Setup WiFi Access Point and start listening Server socket
+  // Connecting to WiFi network
+  Serial.println();
+  Serial.print("Setting up WiFi Access Point ");
+  Serial.println(ap_ssid);
+
   WiFi.mode(WIFI_AP_STA);
   WiFi.hostname("ScrappyBot");
-  WiFi.softAP(ap_ssid, ap_password);
-  if(WIFI_CLIENT_ENABLED){
-    WiFi.begin(client_ssid, client_password); 
-    delay(2000);//Give time for wifi to connect (if possible)
+  WiFi.disconnect();
+  boolean result = WiFi.softAP(ap_ssid, ap_password);
+  while (result != true) {
+    Serial.print(".");
   }
-  
-  server.begin();
-  server.setNoDelay(true);
+  Serial.print(". Done!");
+  Serial.println("");
+  Serial.println("WiFi connected, local IP address: ");
+  Serial.println(WiFi.softAPIP());
+
+  // Starting the web server
+  Serial.println("Starting UDP");
+  Udp.begin(localPort);
+  Serial.print("Local port: ");
+  Serial.println(Udp.localPort());
 
   yield();
 }
@@ -59,45 +93,29 @@ int led_state = LOW;
 WiFiClient serverClient;
 
 void loop() {
+
+  OSCMsgReceive();
+
   if ((loop_count % 16384) == 0) {
     if (led_state == LOW) {
       led_state = HIGH;
     } else led_state = LOW;
     digitalWrite(LED_BUILTIN, led_state);
   }
-  if (server.hasClient()) {
-    serverClient = server.available();
-  }
-  if (serverClient && serverClient.connected()) {
-    if (serverClient.available()) {
-      char data_buffer[129];//buffer to store data from/to the remote
-      char* tokens[8];
-      int num_tokens;
-      int bytes_read = serverClient.readBytesUntil('\n', data_buffer, 128);
-      data_buffer[bytes_read] = '\0';      //Parse the string from the remote into an array of strings, each word is it own entry in the array
-      num_tokens = 0;
-      tokens[num_tokens] = strtok(data_buffer, " ");
-      while (tokens[num_tokens] != NULL) {
-        ++num_tokens;
-        tokens[num_tokens] = strtok(NULL, " ");
-      } //Parse complete
-      //Proccess command
-      if (num_tokens >= 1 && strcmp(tokens[0], "PING") == 0) {
-        serverClient.println("PONG");
-      } else if (num_tokens >= 1 && strcmp(tokens[0], "HALT") == 0) {
-        brakeMotor(MOTOR_A);
-        brakeMotor(MOTOR_B);
-      } else if (num_tokens >= 3 && strcmp(tokens[0], "DRIVE") == 0) {
-        setMotor(MOTOR_A, atoi(tokens[2]));
-        setMotor(MOTOR_B, atoi(tokens[1]));
-      }
+  ++loop_count;
+}
+
+void OSCMsgReceive(){
+  OSCMessage msgIN;
+  int size;
+  if((size = Udp.parsePacket())>0){
+    while(size--)
+      msgIN.fill(Udp.read());
+    if(!msgIN.hasError()){
+      msgIN.route("/bot/leftWheel", moveLeftWheel);
+      msgIN.route("/bot/rightWheel", moveRightWheel);
     }
   }
-  if (serverClient && !serverClient.connected()) {
-    serverClient.stop();
-  }
-
-  ++loop_count;
 }
 
 void setMotor(int motor, int speed) {
@@ -117,6 +135,22 @@ void setMotor(int motor, int speed) {
     pwm.setPWM(1 + offset, 0, abs(speed) * 16);
   }
 }
+
+void moveLeftWheel(OSCMessage &msg, int addrOffset) {
+  int speed = msg.getFloat(0);
+  Serial.print("LeftWheel: ");
+  Serial.println(speed);
+  setMotor(MOTOR_A, speed);
+}
+
+void moveRightWheel(OSCMessage &msg, int addrOffset) {
+  int speed = msg.getFloat(0);
+  Serial.print("RightWheel: ");
+  Serial.println(speed);
+  setMotor(MOTOR_B, speed);
+}
+
+
 
 void brakeMotor(int motor) {
   int offset = motor << 1;
