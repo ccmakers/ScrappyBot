@@ -17,23 +17,19 @@
 const char *ap_ssid = "ScrappyNet01";
 const char *ap_password = "scrappybot";
 
-// A UDP instance to let us send and receive packets over UDP
+// A UDP instance to let us receive packets over UDP
 WiFiUDP Udp;
 
+// A UDP port set on TouchOSC
 const unsigned int localPort = 8888;
 
 OSCErrorCode error;
 
-WiFiServer server(80); // Listening port is 80
-
-
-
 /*** Servo ***/
-void setMotor(int motor, int speed = 128);
+void setMotor(int motor, int speed = 0);
 void brakeMotor(int motor);
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
-
 
 /*** Setup ***/
 void setup() {
@@ -105,6 +101,9 @@ void loop() {
   ++loop_count;
 }
 
+/*
+* Route the TouchOSC messages to the wheels
+*/
 void OSCMsgReceive(){
   OSCMessage msgIN;
   int size;
@@ -115,24 +114,6 @@ void OSCMsgReceive(){
       msgIN.route("/bot/leftWheel", moveLeftWheel);
       msgIN.route("/bot/rightWheel", moveRightWheel);
     }
-  }
-}
-
-void setMotor(int motor, int speed) {
-  int offset = motor << 1;
-  //Bound the speed value
-  if (speed > 255) speed = 255;
-  if (speed < -255) speed = -255;
-
-  if (speed == 0) { //Special case for motor in idle
-    pwm.setPWM(0 + offset, 0, 4096); //special value for pin fully low
-    pwm.setPWM(1 + offset, 0, 4096); //special value for pin fully low
-  } else if (speed > 0) {
-    pwm.setPWM(0 + offset, 0, speed << 4);
-    pwm.setPWM(1 + offset, 0, 4096); //special value for pin fully low
-  } else if (speed < 0) {
-    pwm.setPWM(0 + offset, 0, 4096); //special value for pin fully low
-    pwm.setPWM(1 + offset, 0, abs(speed) * 16);
   }
 }
 
@@ -151,9 +132,23 @@ void moveRightWheel(OSCMessage &msg, int addrOffset) {
 }
 
 
-
-void brakeMotor(int motor) {
+/*
+* Set servo speed and direction
+*/
+void setMotor(int motor, int speed) {
   int offset = motor << 1;
-  pwm.setPWM(0 + offset, 4096, 0); //special value for pin fully high
-  pwm.setPWM(1 + offset, 4096, 0); //special value for pin fully high
+  //Bound the speed value
+  if (speed > 255) speed = 255;
+  if (speed < -255) speed = -255;
+
+  if (speed == 0) { //Special case for motor in idle
+    pwm.setPWM(0 + offset, 0, 4096); //special value for pin fully low
+    pwm.setPWM(1 + offset, 0, 4096); //special value for pin fully low
+  } else if (speed > 0) {
+    pwm.setPWM(0 + offset, 0, speed << 4);
+    pwm.setPWM(1 + offset, 0, 4096); //special value for pin fully low
+  } else if (speed < 0) {
+    pwm.setPWM(0 + offset, 0, 4096); //special value for pin fully low
+    pwm.setPWM(1 + offset, 0, abs(speed) * 16);
+  }
 }
